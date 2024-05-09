@@ -100,7 +100,18 @@ namespace BookyApp
            
         }
 
-        
+        private async void SendMessageToSignalR_Click(object sender, RoutedEventArgs e)
+        {
+            using (var client = new NamedPipeClientStream(".", "SendMessageToSignalR", PipeDirection.Out))
+            {
+                await client.ConnectAsync();
+                using (var writer = new StreamWriter(client))
+                {
+                    await writer.WriteAsync("This message received from WPF to worker service via NamedPipeClientStream and then from worker service sent to chatHub via SignalR!");
+                    await writer.FlushAsync();
+                }
+            }
+        }
     }
 
 

@@ -2,7 +2,43 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div>
+   
+
+   
+    <h2>Send and Receive Messages</h2>
+  
+    <div class="d-flex col-4 my-5">
+        <input class="form-control me-2" id="messageInput" type="text" placeholder="Type your message">
+        <button class="btn btn-primary" id="sendButton">Send</button>
+    </div>
+   
+    <ul id="messageList"></ul>
+
 </div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chatHub")
+        .build();
+
+    connection.on("ReceiveMessage", function (user, message) {
+        const li = document.createElement("li");
+        li.textContent = `${user}: ${message}`;
+        document.getElementById("messageList").appendChild(li);
+    });
+
+    connection.start().catch(function (err) {
+        return console.error(err.toString());
+    });
+
+    document.getElementById("sendButton").addEventListener("click", function () {
+        const message = document.getElementById("messageInput").value;
+        connection.invoke("SendMessage", "Web", message).catch(function (err) {
+            return console.error(err.toString());
+        });
+        document.getElementById("messageInput").value = "";
+    });
+</script>

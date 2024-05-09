@@ -1,5 +1,6 @@
 ﻿
 using Microsoft.AspNetCore.SignalR.Client;
+using System.IO.Pipes;
 
 namespace WorkerService
 {
@@ -22,6 +23,7 @@ namespace WorkerService
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                
                 try
                 {
                     if (_connection.State == HubConnectionState.Disconnected)
@@ -34,6 +36,19 @@ namespace WorkerService
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Exception: {ex.Message}");
+                }
+
+                using (var server = new NamedPipeServerStream("SendMessageToSignalR", PipeDirection.In))
+                {
+                    Console.WriteLine("Waiting for connection...");
+                    await server.WaitForConnectionAsync(stoppingToken);
+
+                    using (var reader = new StreamReader(server))
+                    {
+                        string message = await reader.ReadToEndAsync();
+                        await _connection.InvokeAsync("SendMessage", "Worker Service User", message);
+                        Console.WriteLine($"Received: {message}");
+                    }
                 }
             }
         }
