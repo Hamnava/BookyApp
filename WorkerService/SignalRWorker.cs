@@ -7,8 +7,8 @@ namespace WorkerService
     public class SignalRWorker : BackgroundService
     {
         private readonly HubConnection _connection;
-
-        public SignalRWorker()
+        private readonly ILogger<SignalRWorker> _logger;
+        public SignalRWorker(ILogger<SignalRWorker> logger)
         {
             _connection = new HubConnectionBuilder()
                 .WithUrl("https://localhost:7031/chatHub")
@@ -18,6 +18,8 @@ namespace WorkerService
             {
                 Console.WriteLine($"{user}: {message}");
             });
+
+            _logger = logger;
         }
         protected async override Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -46,8 +48,10 @@ namespace WorkerService
                     using (var reader = new StreamReader(server))
                     {
                         string message = await reader.ReadToEndAsync();
+
                         await _connection.InvokeAsync("SendMessage", "Worker Service User", message);
-                        Console.WriteLine($"Received: {message}");
+
+                        _logger.LogInformation(message);
                     }
                 }
             }

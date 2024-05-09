@@ -26,6 +26,8 @@ namespace WorkerService
                     {
                         string message = await reader.ReadToEndAsync();
                         Console.WriteLine($"Received: {message}");
+
+                        _logger.LogInformation(message);
                     }
                 }
             }
