@@ -1,24 +1,71 @@
 ﻿
 using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
+using System.ComponentModel;
 using System.IO;
 using System.IO.Pipes;
 using System.Windows;
+using System.Windows.Media;
 
 namespace BookyApp
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private HubConnection _connection;
+
+        private Brush _connectionStatus = Brushes.Red;
 
         public MainWindow()
         {
             InitializeComponent();
-            InitializeSignalR();
+            DataContext = this;  // Set the DataContext for data binding
         }
+
+        public Brush ConnectionStatus
+        {
+            get { return _connectionStatus; }
+            set
+            {
+                if (_connectionStatus != value)
+                {
+                    _connectionStatus = value;
+                    OnPropertyChanged("ConnectionStatus");
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private async void SendDataButton_Click(object sender, RoutedEventArgs e)
+        {
+            using (var client = new NamedPipeClientStream(".", "PipesOfPiece", PipeDirection.Out))
+            {
+                try
+                {
+                    await client.ConnectAsync(5000); // Timeout for connection attempt
+                    ConnectionStatus = Brushes.Green;
+                    using (var writer = new StreamWriter(client))
+                    {
+                        await writer.WriteAsync("Hello from WPF!");
+                        await writer.FlushAsync();
+                    }
+                }
+                catch (Exception)
+                {
+                    ConnectionStatus = Brushes.Red;
+                }
+            }
+        }
+
+     
 
         private async void InitializeSignalR()
         {
@@ -50,18 +97,7 @@ namespace BookyApp
             await _connection.InvokeAsync("SendMessage", "WPF User", "Hello from WPF");
         }
 
-        private async void SendDataButton_Click(object sender, RoutedEventArgs e)
-        {
-            using (var client = new NamedPipeClientStream(".", "PipesOfPiece", PipeDirection.Out))
-            {
-                await client.ConnectAsync();
-                using (var writer = new StreamWriter(client))
-                {
-                    await writer.WriteAsync("Hello from WPF!");
-                    await writer.FlushAsync();
-                }
-            }
-        }
+
 
         private async void SendAndRecieveDataButton_Click(object sender, RoutedEventArgs e)
         {
