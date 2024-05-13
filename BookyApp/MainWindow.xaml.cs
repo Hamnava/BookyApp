@@ -87,16 +87,7 @@ namespace BookyApp
         {
             var data = "This message received from WPF to worker service via NamedPipeClientStream and then from worker service sent to chatHub via SignalR!";
 
-            using (var client = new NamedPipeClientStream(".", "SendMessageToSignalR", PipeDirection.Out))
-            {
-                await client.ConnectAsync();
-                using (var writer = new StreamWriter(client))
-                {
-                    await writer.WriteAsync(data);
-                    await writer.FlushAsync();
-                }
-            }
-            //await _pipeClientService.SendMessageAsync("SendMessageToSignalR", PipeDirection.Out, data);
+            await _pipeClientService.SendMessageAsync("SendMessageToSignalR", PipeDirection.Out, data);
 
         }
     }

@@ -15,15 +15,15 @@ public class NamedPipeClientService
         _statusManager = statusManager;
     }
 
-    public async Task SendMessageAsync(string pipeName, PipeDirection direction, object dataToSend, string statusKey = null)
+    public async Task SendMessageAsync(string pipeName, PipeDirection direction, object dataToSend, string? statusKey = null)
     {
         try
         {
             using (var client = new NamedPipeClientStream(".", pipeName, direction, PipeOptions.Asynchronous))
             {
-              
+                await client.ConnectAsync(5000);
                 if(statusKey != null) 
-                    _statusManager.SetStatus(statusKey, Brushes.Green);
+                _statusManager.SetStatus(statusKey, Brushes.Green);
 
                 if (direction == PipeDirection.Out || direction == PipeDirection.InOut)
                 {
