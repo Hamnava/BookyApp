@@ -9,9 +9,10 @@
     <Grid>
 
         <Button Content="Message to worker service" HorizontalAlignment="Center" Margin="0,72,0,0" VerticalAlignment="Top" Width="209" Background="#FF619BDC" Click="SendDataButton_Click" Height="42"/>
-        <Ellipse Fill="{Binding ConnectionStatus}" HorizontalAlignment="Left" Height="21" Margin="532,83,0,0" Stroke="Black" VerticalAlignment="Top" Width="24" RenderTransformOrigin="-0.802,-0.286"/>
+        <Ellipse Fill="{Binding Connection1Status}" HorizontalAlignment="Left" Height="21" Margin="532,83,0,0" Stroke="Black" VerticalAlignment="Top" Width="24" RenderTransformOrigin="-0.802,-0.286"/>
 
         <Button Content="Send and Receive Message back" HorizontalAlignment="Center" Margin="0,154,0,0" VerticalAlignment="Top" Width="270" Background="#FF80CC37" Click="SendAndRecieveDataButton_Click" RenderTransformOrigin="0.5,0.5" Height="43" BorderThickness="1,1,1,3" />
+        <Ellipse Fill="{Binding Connection2Status}" HorizontalAlignment="Left" Height="21" Margin="567,165,0,0" Stroke="Black" VerticalAlignment="Top" Width="24" RenderTransformOrigin="-0.802,-0.286"/>
 
         <Button x:Name="SignalRMessage" Content="WPF to signalR" HorizontalAlignment="Center" Margin="0,243,0,0" VerticalAlignment="Top" Width="168" Background="#FFDCBB61" Click="SignalRMessageButton_Click" Height="40"/>
 

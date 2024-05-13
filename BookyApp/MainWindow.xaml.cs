@@ -1,4 +1,5 @@
 ﻿
+using BookyApp.Helpers;
 using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
 using System.ComponentModel;
@@ -12,30 +13,20 @@ namespace BookyApp
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window, INotifyPropertyChanged
+    public partial class MainWindow : Window
     {
         private HubConnection _connection;
 
-        private Brush _connectionStatus = Brushes.Red;
+        private ConnectionStatusManager _statusManager = new ConnectionStatusManager();
+
 
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = this;  // Set the DataContext for data binding
+            DataContext = _statusManager;
         }
 
-        public Brush ConnectionStatus
-        {
-            get { return _connectionStatus; }
-            set
-            {
-                if (_connectionStatus != value)
-                {
-                    _connectionStatus = value;
-                    OnPropertyChanged("ConnectionStatus");
-                }
-            }
-        }
+     
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -51,7 +42,7 @@ namespace BookyApp
                 try
                 {
                     await client.ConnectAsync(5000); // Timeout for connection attempt
-                    ConnectionStatus = Brushes.Green;
+                    _statusManager.Connection1Status = Brushes.Green;
                     using (var writer = new StreamWriter(client))
                     {
                         await writer.WriteAsync("Hello from WPF!");
@@ -60,7 +51,7 @@ namespace BookyApp
                 }
                 catch (Exception)
                 {
-                    ConnectionStatus = Brushes.Red;
+                    _statusManager.Connection1Status = Brushes.Red;
                 }
             }
         }
@@ -106,6 +97,7 @@ namespace BookyApp
                 using (var client = new NamedPipeClientStream(".", "SendReceive", PipeDirection.InOut, PipeOptions.Asynchronous))
                 {
                     await client.ConnectAsync();
+                    _statusManager.Connection2Status = Brushes.Green;
                     using (var writer = new StreamWriter(client, leaveOpen: true)) // Important to leave the underlying stream open
                     {
                         var data = new HelloWithObject
@@ -131,6 +123,7 @@ namespace BookyApp
             }
             catch (Exception ex)
             {
+                _statusManager.Connection2Status = Brushes.Red;
                 MessageBox.Show($"Error: {ex.Message}");
             }
            
