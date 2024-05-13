@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.AspNetCore.SignalR.Client;
+using Newtonsoft.Json;
+using System.Data.Common;
 using System.IO.Pipes;
 using WorkerService.Models;
 
@@ -15,30 +17,34 @@ public class NamedPipeService
         _logger = logger;
     }
 
-    public async Task RunPipeServer(CancellationToken stoppingToken)
+    public async Task RunPipeServer(CancellationToken stoppingToken, HubConnection? hubConnection = null)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
             using (var server = new NamedPipeServerStream(_pipeName, _pipeDirection, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous))
             {
+                
                 _logger.LogInformation("Waiting for connection...");
                 await server.WaitForConnectionAsync(stoppingToken);
 
                 if (_pipeDirection == PipeDirection.In || _pipeDirection == PipeDirection.InOut)
                 {
-                    await HandleIncomingMessages(server);
+                    await HandleIncomingMessages(server, hubConnection);
                 }
             }
         }
     }
 
-    private async Task HandleIncomingMessages(NamedPipeServerStream server)
+    private async Task HandleIncomingMessages(NamedPipeServerStream server, HubConnection? hubConnection = null)
     {
         using (var reader = new StreamReader(server))
         {
             string message = await reader.ReadLineAsync();
             _logger.LogInformation($"Received: {message}");
             Console.WriteLine($"Received: {message}");
+
+            if(hubConnection != null)
+                await hubConnection.InvokeAsync("SendMessage", "Worker Service User", message);
 
             if (_pipeDirection == PipeDirection.InOut)
             {

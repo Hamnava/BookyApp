@@ -35,6 +35,21 @@ namespace BookyApp.Helpers
             storage = value;
             OnPropertyChanged(propertyName);
         }
+
+        public void SetStatus(string key, Brush status)
+        {
+            switch (key)
+            {
+                case "Connection1Status":
+                    Connection1Status = status;
+                    break;
+                case "Connection2Status":
+                    Connection2Status = status;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(key), "Invalid connection key");
+            }
+        }
     }
 
 

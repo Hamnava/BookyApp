@@ -1,5 +1,6 @@
 ﻿
 using BookyApp.Helpers;
+using BookyApp.Models;
 using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
 using System.ComponentModel;
@@ -18,12 +19,14 @@ namespace BookyApp
         private HubConnection _connection;
 
         private ConnectionStatusManager _statusManager = new ConnectionStatusManager();
-
+        private NamedPipeClientService _pipeClientService;
 
         public MainWindow()
         {
             InitializeComponent();
+            InitializeSignalR();
             DataContext = _statusManager;
+            _pipeClientService = new NamedPipeClientService(_statusManager);
         }
 
      
@@ -37,23 +40,7 @@ namespace BookyApp
 
         private async void SendDataButton_Click(object sender, RoutedEventArgs e)
         {
-            using (var client = new NamedPipeClientStream(".", "PipesOfPiece", PipeDirection.Out))
-            {
-                try
-                {
-                    await client.ConnectAsync(5000); // Timeout for connection attempt
-                    _statusManager.Connection1Status = Brushes.Green;
-                    using (var writer = new StreamWriter(client))
-                    {
-                        await writer.WriteAsync("Hello from WPF!");
-                        await writer.FlushAsync();
-                    }
-                }
-                catch (Exception)
-                {
-                    _statusManager.Connection1Status = Brushes.Red;
-                }
-            }
+            await _pipeClientService.SendMessageAsync("PipesOfPiece", PipeDirection.Out, "Hello from WPF!", "Connection1Status");
         }
 
      
@@ -92,62 +79,28 @@ namespace BookyApp
 
         private async void SendAndRecieveDataButton_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                using (var client = new NamedPipeClientStream(".", "SendReceive", PipeDirection.InOut, PipeOptions.Asynchronous))
-                {
-                    await client.ConnectAsync();
-                    _statusManager.Connection2Status = Brushes.Green;
-                    using (var writer = new StreamWriter(client, leaveOpen: true)) // Important to leave the underlying stream open
-                    {
-                        var data = new HelloWithObject
-                        {
-                            Name = "Nematulah",
-                            Family = "Hussaini",
-                            Age = 24
-                        };
-
-                        // Serialize the object to a JSON string
-                        string jsonData = JsonConvert.SerializeObject(data);
-
-                        await writer.WriteLineAsync(jsonData);
-                        await writer.FlushAsync();
-                    }
-
-                    using (var reader = new StreamReader(client)) // Continue using the same stream for reading
-                    {
-                        string response = await reader.ReadLineAsync();
-                        MessageBox.Show(response);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _statusManager.Connection2Status = Brushes.Red;
-                MessageBox.Show($"Error: {ex.Message}");
-            }
-           
+            var data = new HelloWithObject { Name = "Nematulah", Family = "Hussaini", Age = 24 };
+            await _pipeClientService.SendMessageAsync("SendReceive", PipeDirection.InOut, data, "Connection2Status");
         }
 
         private async void SendMessageToSignalR_Click(object sender, RoutedEventArgs e)
         {
+            var data = "This message received from WPF to worker service via NamedPipeClientStream and then from worker service sent to chatHub via SignalR!";
+
             using (var client = new NamedPipeClientStream(".", "SendMessageToSignalR", PipeDirection.Out))
             {
                 await client.ConnectAsync();
                 using (var writer = new StreamWriter(client))
                 {
-                    await writer.WriteAsync("This message received from WPF to worker service via NamedPipeClientStream and then from worker service sent to chatHub via SignalR!");
+                    await writer.WriteAsync(data);
                     await writer.FlushAsync();
                 }
             }
+            //await _pipeClientService.SendMessageAsync("SendMessageToSignalR", PipeDirection.Out, data);
+
         }
     }
 
 
-    public class HelloWithObject
-    {
-        public string Name { get; set; }
-        public string Family { get; set; }
-        public int Age { get; set; }
-    }
+  
 }
