@@ -5,32 +5,19 @@ namespace WorkerService
     public class Worker : BackgroundService
     {
         private readonly ILogger<Worker> _logger;
+        private readonly NamedPipeService _pipeService;
 
         public Worker(ILogger<Worker> logger)
         {
             _logger = logger;
+            _pipeService = new NamedPipeService("PipesOfPiece", PipeDirection.In, logger);
         }
 
 
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                using (var server = new NamedPipeServerStream("PipesOfPiece", PipeDirection.In))
-                {
-                    Console.WriteLine("Waiting for connection...");
-                    await server.WaitForConnectionAsync(stoppingToken);
-
-                    using (var reader = new StreamReader(server))
-                    {
-                        string message = await reader.ReadToEndAsync();
-                        Console.WriteLine($"Received: {message}");
-
-                        _logger.LogInformation(message);
-                    }
-                }
-            }
+            await _pipeService.RunPipeServer(stoppingToken);
         }
     }
 }
