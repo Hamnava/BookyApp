@@ -5,25 +5,24 @@ using Newtonsoft.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using BookyApp.Helpers;
+using System.Net.Sockets;
+using System.Net;
+using System.Windows.Threading;
 
 public class NamedPipeClientService
 {
-    private readonly ConnectionStatusManager _statusManager;
+ 
 
-    public NamedPipeClientService(ConnectionStatusManager statusManager)
-    {
-        _statusManager = statusManager;
-    }
 
-    public async Task SendMessageAsync(string pipeName, PipeDirection direction, object dataToSend, string? statusKey = null)
+   
+    public async Task SendMessageAsync(string pipeName, PipeDirection direction, object dataToSend)
     {
         try
         {
             using (var client = new NamedPipeClientStream(".", pipeName, direction, PipeOptions.Asynchronous))
             {
                 await client.ConnectAsync(5000);
-                if(statusKey != null) 
-                _statusManager.SetStatus(statusKey, Brushes.Green);
+              
 
                 if (direction == PipeDirection.Out || direction == PipeDirection.InOut)
                 {
@@ -47,8 +46,7 @@ public class NamedPipeClientService
         }
         catch (Exception ex)
         {
-            if (statusKey != null)
-                _statusManager.SetStatus(statusKey, Brushes.Red);
+           
             MessageBox.Show($"Error: {ex.Message}");
         }
     }

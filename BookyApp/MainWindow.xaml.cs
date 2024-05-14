@@ -6,6 +6,9 @@ using Newtonsoft.Json;
 using System.ComponentModel;
 using System.IO;
 using System.IO.Pipes;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Windows;
 using System.Windows.Media;
 
@@ -16,6 +19,9 @@ namespace BookyApp
     /// </summary>
     public partial class MainWindow : Window
     {
+        private readonly int _port = 12345;
+        private readonly TcpListener _listener;
+
         private HubConnection _connection;
 
         private ConnectionStatusManager _statusManager = new ConnectionStatusManager();
@@ -26,10 +32,62 @@ namespace BookyApp
             InitializeComponent();
             InitializeSignalR();
             DataContext = _statusManager;
-            _pipeClientService = new NamedPipeClientService(_statusManager);
+            _pipeClientService = new NamedPipeClientService();
+
+            _listener = new TcpListener(IPAddress.Any, _port);
+            _listener.Start();
+            ListenForHeartbeats();
         }
 
-     
+        private async void ListenForHeartbeats()
+        {
+            while (true)
+            {
+                try
+                {
+                    // Asynchronously accept a client connection
+                    var client = await _listener.AcceptTcpClientAsync();
+                    Console.WriteLine("Client connected...");
+                    HandleClient(client);
+                }
+                catch (Exception ex)
+                {
+                    // Log or handle the exception
+                    Console.WriteLine("Error accepting client: " + ex.Message);
+                }
+            }
+        }
+
+        private async void HandleClient(TcpClient client)
+        {
+            try
+            {
+                var stream = client.GetStream();
+                byte[] buffer = new byte[1024];
+                int length = await stream.ReadAsync(buffer, 0, buffer.Length);
+                string message = Encoding.ASCII.GetString(buffer, 0, length);
+                UpdateUI(message.Contains("Heartbeat"));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error reading from client: " + ex.Message);
+            }
+            finally
+            {
+                client.Close();
+            }
+        }
+
+
+
+
+        private void UpdateUI(bool isAlive)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                _statusManager.ConnectionStatus = isAlive ? Brushes.Green : Brushes.Red;
+            });   
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -40,7 +98,7 @@ namespace BookyApp
 
         private async void SendDataButton_Click(object sender, RoutedEventArgs e)
         {
-            await _pipeClientService.SendMessageAsync("PipesOfPiece", PipeDirection.Out, "Hello from WPF!", "Connection1Status");
+            await _pipeClientService.SendMessageAsync("PipesOfPiece", PipeDirection.Out, "Hello from WPF!");
         }
 
      
@@ -80,7 +138,7 @@ namespace BookyApp
         private async void SendAndRecieveDataButton_Click(object sender, RoutedEventArgs e)
         {
             var data = new HelloWithObject { Name = "Nematulah", Family = "Hussaini", Age = 24 };
-            await _pipeClientService.SendMessageAsync("SendReceive", PipeDirection.InOut, data, "Connection2Status");
+            await _pipeClientService.SendMessageAsync("SendReceive", PipeDirection.InOut, data);
         }
 
         private async void SendMessageToSignalR_Click(object sender, RoutedEventArgs e)
