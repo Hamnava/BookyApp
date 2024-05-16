@@ -29,8 +29,7 @@ public class HeartbeatSender : IHostedService
         Console.WriteLine("Simulating crash...");
         // Stop the timer to simulate the service crashing
 
-        var hello = new HelloWithObject();
-        hello.Name.ToString();
+        Environment.Exit(1);
     }
 
     private void SendHeartbeat(object state)

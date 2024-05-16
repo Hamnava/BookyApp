@@ -21,9 +21,10 @@ namespace BookyApp
     {
         private readonly int _port = 12345;
         private readonly TcpListener _listener;
+        private DateTime _lastHeartbeatReceived = DateTime.UtcNow;
+        private readonly TimeSpan _heartbeatTimeout = TimeSpan.FromSeconds(10);
 
         private HubConnection _connection;
-
         private ConnectionStatusManager _statusManager = new ConnectionStatusManager();
         private NamedPipeClientService _pipeClientService;
 
@@ -37,6 +38,8 @@ namespace BookyApp
             _listener = new TcpListener(IPAddress.Any, _port);
             _listener.Start();
             ListenForHeartbeats();
+
+            CheckForHeartbeatTimeout();
         }
 
         private async void ListenForHeartbeats()
@@ -66,7 +69,11 @@ namespace BookyApp
                 byte[] buffer = new byte[1024];
                 int length = await stream.ReadAsync(buffer, 0, buffer.Length);
                 string message = Encoding.ASCII.GetString(buffer, 0, length);
-                UpdateUI(message.Contains("Heartbeat"));
+                if (message.Contains("Heartbeat"))
+                {
+                    _lastHeartbeatReceived = DateTime.UtcNow; 
+                    UpdateUI(true); 
+                }
             }
             catch (Exception ex)
             {
@@ -79,6 +86,21 @@ namespace BookyApp
         }
 
 
+        private void CheckForHeartbeatTimeout()
+        {
+            Task.Run(async () =>
+            {
+                while (true)
+                {
+                    if ((DateTime.UtcNow - _lastHeartbeatReceived) > _heartbeatTimeout)
+                    {
+                        UpdateUI(false);
+                    }
+                    await Task.Delay(1000); // Check every second
+                }
+            });
+        }
+
 
 
         private void UpdateUI(bool isAlive)
@@ -89,12 +111,7 @@ namespace BookyApp
             });   
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+       
 
         private async void SendDataButton_Click(object sender, RoutedEventArgs e)
         {
