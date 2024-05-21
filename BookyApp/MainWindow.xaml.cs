@@ -2,13 +2,8 @@
 using BookyApp.Helpers;
 using BookyApp.Models;
 using Microsoft.AspNetCore.SignalR.Client;
-using Newtonsoft.Json;
-using System.ComponentModel;
-using System.IO;
 using System.IO.Pipes;
-using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Windows;
 using System.Windows.Media;
 
@@ -19,10 +14,6 @@ namespace BookyApp
     /// </summary>
     public partial class MainWindow : Window
     {
-        private readonly int _port = 12345;
-        private readonly TcpListener _listener;
-        private DateTime _lastHeartbeatReceived = DateTime.UtcNow;
-        private readonly TimeSpan _heartbeatTimeout = TimeSpan.FromSeconds(10);
 
         private HubConnection _connection;
         private ConnectionStatusManager _statusManager = new ConnectionStatusManager();
@@ -32,74 +23,11 @@ namespace BookyApp
         {
             InitializeComponent();
             InitializeSignalR();
+            PresenceSignalR();
             DataContext = _statusManager;
             _pipeClientService = new NamedPipeClientService();
-
-            _listener = new TcpListener(IPAddress.Any, _port);
-            _listener.Start();
-            ListenForHeartbeats();
-
-            CheckForHeartbeatTimeout();
         }
 
-        private async void ListenForHeartbeats()
-        {
-            while (true)
-            {
-                try
-                {
-                    // Asynchronously accept a client connection
-                    var client = await _listener.AcceptTcpClientAsync();
-                    Console.WriteLine("Client connected...");
-                    HandleClient(client);
-                }
-                catch (Exception ex)
-                {
-                    // Log or handle the exception
-                    Console.WriteLine("Error accepting client: " + ex.Message);
-                }
-            }
-        }
-
-        private async void HandleClient(TcpClient client)
-        {
-            try
-            {
-                var stream = client.GetStream();
-                byte[] buffer = new byte[1024];
-                int length = await stream.ReadAsync(buffer, 0, buffer.Length);
-                string message = Encoding.ASCII.GetString(buffer, 0, length);
-                if (message.Contains("Heartbeat"))
-                {
-                    _lastHeartbeatReceived = DateTime.UtcNow; 
-                    UpdateUI(true); 
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error reading from client: " + ex.Message);
-            }
-            finally
-            {
-                client.Close();
-            }
-        }
-
-
-        private void CheckForHeartbeatTimeout()
-        {
-            Task.Run(async () =>
-            {
-                while (true)
-                {
-                    if ((DateTime.UtcNow - _lastHeartbeatReceived) > _heartbeatTimeout)
-                    {
-                        UpdateUI(false);
-                    }
-                    await Task.Delay(1000); // Check every second
-                }
-            });
-        }
 
 
 
@@ -108,17 +36,17 @@ namespace BookyApp
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _statusManager.ConnectionStatus = isAlive ? Brushes.Green : Brushes.Red;
-            });   
+            });
         }
 
-       
+
 
         private async void SendDataButton_Click(object sender, RoutedEventArgs e)
         {
             await _pipeClientService.SendMessageAsync("PipesOfPiece", PipeDirection.Out, "Hello from WPF!");
         }
 
-     
+
 
         private async void InitializeSignalR()
         {
@@ -145,6 +73,30 @@ namespace BookyApp
             }
         }
 
+        private async void PresenceSignalR()
+        {
+            _connection = new HubConnectionBuilder()
+                .WithUrl("https://localhost:7031/presenceHub")
+                .Build();
+
+            _connection.Closed += async (error) =>
+            {
+                await Task.Delay(new Random().Next(0, 5) * 1000);
+                await _connection.StartAsync();
+            };
+
+            _connection.On<bool>("WorkerServiceStatus", (isAlive) =>
+            {
+                UpdateUI(isAlive);
+            });
+
+            await _connection.StartAsync();
+            await _connection.SendAsync("SendMessage", "WPF service is running");
+
+            // Request the current status of the worker service immediately after connecting
+            await _connection.InvokeAsync("GetWorkerServiceStatus");
+        }
+
         private async void SignalRMessageButton_Click(object sender, RoutedEventArgs e)
         {
             await _connection.InvokeAsync("SendMessage", "WPF User", "Hello from WPF");
@@ -168,5 +120,5 @@ namespace BookyApp
     }
 
 
-  
+
 }
