@@ -36,7 +36,7 @@ namespace SignalRServer.Hubs
             return Clients.Caller.SendAsync("WorkerServiceStatus", IsWorkerServiceConnected);
         }
 
-        public Task SendMessage(string message)
+        public Task SendHelloMessage(string message)
         {
             Console.WriteLine($"Message from {Context.ConnectionId}: {message}");
             // You can customize this to send the message to specific clients or groups

@@ -21,7 +21,7 @@ namespace WorkerService.Services
                 };
 
                 await _connection.StartAsync();
-                await _connection.SendAsync("SendMessage", "Worker service is running");
+                await _connection.SendAsync("SendHelloMessage", "Worker service is running");
 
                 await Task.Delay(20000).ContinueWith(_ => SimulateCrash());
             }

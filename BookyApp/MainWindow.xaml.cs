@@ -15,7 +15,8 @@ namespace BookyApp
     public partial class MainWindow : Window
     {
 
-        private HubConnection _connection;
+        private HubConnection _connection1;
+        private HubConnection _connection2;
         private ConnectionStatusManager _statusManager = new ConnectionStatusManager();
         private NamedPipeClientService _pipeClientService;
 
@@ -50,11 +51,11 @@ namespace BookyApp
 
         private async void InitializeSignalR()
         {
-            _connection = new HubConnectionBuilder()
+            _connection1 = new HubConnectionBuilder()
                 .WithUrl("https://localhost:7031/chatHub")
                 .Build();
 
-            _connection.On<string, string>("ReceiveMessage", (user, message) =>
+            _connection1.On<string, string>("ReceiveMessage", (user, message) =>
             {
                 this.Dispatcher.Invoke(() =>
                 {
@@ -65,7 +66,7 @@ namespace BookyApp
 
             try
             {
-                await _connection.StartAsync();
+                await _connection1.StartAsync();
             }
             catch (Exception ex)
             {
@@ -75,31 +76,31 @@ namespace BookyApp
 
         private async void PresenceSignalR()
         {
-            _connection = new HubConnectionBuilder()
+            _connection2 = new HubConnectionBuilder()
                 .WithUrl("https://localhost:7031/presenceHub")
                 .Build();
 
-            _connection.Closed += async (error) =>
+            _connection2.Closed += async (error) =>
             {
                 await Task.Delay(new Random().Next(0, 5) * 1000);
-                await _connection.StartAsync();
+                await _connection2.StartAsync();
             };
 
-            _connection.On<bool>("WorkerServiceStatus", (isAlive) =>
+            _connection2.On<bool>("WorkerServiceStatus", (isAlive) =>
             {
                 UpdateUI(isAlive);
             });
 
-            await _connection.StartAsync();
-            await _connection.SendAsync("SendMessage", "WPF service is running");
+            await _connection2.StartAsync();
+            await _connection2.SendAsync("SendHelloMessage", "WPF service is running");
 
             // Request the current status of the worker service immediately after connecting
-            await _connection.InvokeAsync("GetWorkerServiceStatus");
+            await _connection2.InvokeAsync("GetWorkerServiceStatus");
         }
 
         private async void SignalRMessageButton_Click(object sender, RoutedEventArgs e)
         {
-            await _connection.InvokeAsync("SendMessage", "WPF User", "Hello from WPF");
+            await _connection1.InvokeAsync("SendMessage", "WPF User", "Hello from WPF");
         }
 
 
