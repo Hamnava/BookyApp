@@ -1,4 +1,5 @@
 ﻿
+using BookyApp.Helper;
 using BookyApp.Helpers;
 using BookyApp.Models;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -70,11 +71,11 @@ namespace BookyApp
 
                 // Get the unique device ID
                 string deviceId = DeviceInfoHelper.GetDeviceId();
-                string uniqueId = Guid.NewGuid().ToString();
+                string uniqueClientId = ClientIdHelper.GetOrCreateClientId();
                 string clientType = "WPF";
 
                 // Send registration information
-                await _connection1.InvokeAsync("RegisterClient", uniqueId, deviceId, clientType);
+                await _connection1.InvokeAsync("RegisterClient", uniqueClientId, deviceId, clientType);
             }
             catch (Exception ex)
             {

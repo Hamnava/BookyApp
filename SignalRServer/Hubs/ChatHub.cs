@@ -5,42 +5,68 @@ namespace SignalRServer.Hubs
     public class ChatHub : Hub
     {
         private static readonly Dictionary<string, ClientInfo> ClientsInfo = new();
+        private static readonly Dictionary<string, string> ClientIdToConnectionId = new(); // Maps UniqueClientId to ConnectionId
 
         public override async Task OnConnectedAsync()
         {
-            var connectionId = Context.ConnectionId;
-            ClientsInfo[connectionId] = new ClientInfo
-            {
-                ConnectionId = connectionId,
-                UniqueId = "Unknown",
-                DeviceId = "Unknown",
-                ClientType = "Unknown"
-            };
-
-            await Clients.All.SendAsync("UpdateClientList", ClientsInfo.Values);
-            await Clients.All.SendAsync("ClientStatusChanged", connectionId, "online");
             await base.OnConnectedAsync();
         }
 
         public override async Task OnDisconnectedAsync(Exception exception)
         {
-            //ClientsInfo.Remove(Context.ConnectionId);
-            await Clients.All.SendAsync("UpdateClientList", ClientsInfo.Values);
-            await Clients.All.SendAsync("ClientStatusChanged", Context.ConnectionId, "offline");
+            var connectionId = Context.ConnectionId;
+            if (ClientsInfo.TryGetValue(connectionId, out var clientInfo))
+            {
+                clientInfo.IsOnline = false;
+                await Clients.All.SendAsync("UpdateClientList", ClientsInfo.Values);
+                await Clients.All.SendAsync("ClientStatusChanged", clientInfo.UniqueClientId, "offline");
+            }
+
             await base.OnDisconnectedAsync(exception);
         }
 
-        public async Task RegisterClient(string uniqueId, string deviceId, string clientType)
+        public async Task RegisterClient(string uniqueClientId, string deviceId, string clientType)
         {
             var connectionId = Context.ConnectionId;
-            if (ClientsInfo.ContainsKey(connectionId))
-            {
-                ClientsInfo[connectionId].UniqueId = uniqueId;
-                ClientsInfo[connectionId].DeviceId = deviceId;
-                ClientsInfo[connectionId].ClientType = clientType;
 
-                await Clients.All.SendAsync("UpdateClientList", ClientsInfo.Values);
+            // Check if the client already exists
+            if (ClientIdToConnectionId.TryGetValue(uniqueClientId, out var oldConnectionId))
+            {
+                // Update the existing client's information
+                if (ClientsInfo.TryGetValue(oldConnectionId, out var clientInfo))
+                {
+                    clientInfo.ConnectionId = connectionId;
+                    clientInfo.DeviceId = deviceId;
+                    clientInfo.ClientType = clientType;
+                    clientInfo.IsOnline = true;
+
+                    // Remove the old mapping
+                    ClientsInfo.Remove(oldConnectionId);
+                    ClientIdToConnectionId.Remove(uniqueClientId);
+
+                    // Add the new mapping
+                    ClientsInfo[connectionId] = clientInfo;
+                    ClientIdToConnectionId[uniqueClientId] = connectionId;
+                }
             }
+            else
+            {
+                // Add new client
+                var clientInfo = new ClientInfo
+                {
+                    ConnectionId = connectionId,
+                    UniqueClientId = uniqueClientId,
+                    DeviceId = deviceId,
+                    ClientType = clientType,
+                    IsOnline = true
+                };
+
+                ClientsInfo[connectionId] = clientInfo;
+                ClientIdToConnectionId[uniqueClientId] = connectionId;
+            }
+
+            await Clients.All.SendAsync("UpdateClientList", ClientsInfo.Values);
+            await Clients.All.SendAsync("ClientStatusChanged", uniqueClientId, "online");
         }
 
         public async Task SendMessage(string user, string message)
@@ -57,12 +83,15 @@ namespace SignalRServer.Hubs
 
 
 
+
+
     public class ClientInfo
     {
         public string ConnectionId { get; set; }
-        public string UniqueId { get; set; }
+        public string UniqueClientId { get; set; } // Unique ID that persists across connections
         public string DeviceId { get; set; }
-        public string ClientType { get; set; } // e.g., WPF or Worker Service
+        public string ClientType { get; set; }
+        public bool IsOnline { get; set; }
     }
 
 }

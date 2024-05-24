@@ -2,6 +2,10 @@
     ViewData["Title"] = "Home Page";
 }
 
+@{
+    ViewData["Title"] = "Home Page";
+}
+
 <h2>Send and Receive Messages</h2>
 
 <div class="d-flex col-4 my-5">
@@ -32,15 +36,17 @@
         const clientList = document.getElementById("clientList");
         clientList.innerHTML = ""; // Clear current list
         clients.forEach(client => {
+            const statusClass = client.isOnline ? 'text-success' : 'text-danger';
+            const statusText = client.isOnline ? 'online' : 'offline';
             const card = document.createElement('div');
-            card.className = 'rounded-2 shadow p-2 col-3 me-3 mt-3';
+            card.className = 'rounded-2 shadow p-2 col-3 me-3';
             card.innerHTML = `
                     <div class="d-flex justify-content-between">
                         <p>Client type: ${client.clientType}</p>
-                        <p class="status text-success" id="status-${client.connectionId}">online</p>
+                        <p class="${statusClass}" id="status-${client.uniqueClientId}">${statusText}</p>
                     </div>
                     <p>Device Id: ${client.deviceId}</p>
-                    <button class="btn btn-secondary selectClientButton" data-connectionid="${client.connectionId}">Select</button>
+                    <button class="btn btn-secondary selectClientButton" data-connectionid="${client.connectionId}" ${!client.isOnline ? 'disabled' : ''}>Select</button>
                 `;
             clientList.appendChild(card);
         });
@@ -61,21 +67,31 @@
         });
     });
 
-    connection.on("ClientStatusChanged", function (connectionId, status) {
-        const statusElement = document.getElementById(`status-${connectionId}`);
+    connection.on("ClientStatusChanged", function (uniqueClientId, status) {
+        const statusElement = document.getElementById(`status-${uniqueClientId}`);
         if (statusElement) {
+            const isOnline = status === 'online';
             statusElement.textContent = status;
-            statusElement.className = status === 'online' ? 'status text-success' : 'status text-danger';
+            statusElement.className = isOnline ? 'text-success' : 'text-danger';
+            const button = statusElement.closest('.col-3').querySelector('.selectClientButton');
+            if (button) {
+                button.disabled = !isOnline;
+                if (!isOnline) {
+                    button.closest('.col-3').style.border = 'none';
+                }
+            }
         }
     });
 
     connection.start().then(() => {
-        // Get the unique device ID
+        // Get the unique client ID (e.g., from localStorage or generate it)
+        var uniqueClientId = localStorage.getItem('uniqueClientId') || `client-${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('uniqueClientId', uniqueClientId);
+
         var deviceId = "Web browser";
-        var uniqueId = "Unique Id";
         var clientType = "Web";
 
-        connection.invoke("RegisterClient", uniqueId, deviceId, clientType).catch(function (err) {
+        connection.invoke("RegisterClient", uniqueClientId, deviceId, clientType).catch(function (err) {
             return console.error(err.toString());
         });
     }).catch(function (err) {

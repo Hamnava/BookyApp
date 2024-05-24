@@ -1,6 +1,7 @@
 ﻿
 using Microsoft.AspNetCore.SignalR.Client;
 using System.IO.Pipes;
+using WorkerService.Helper;
 
 namespace WorkerService
 {
@@ -35,11 +36,11 @@ namespace WorkerService
 
                     // Get the unique device ID
                     string deviceId = DeviceInfoHelper.GetDeviceId();
-                    string uniqueId = Guid.NewGuid().ToString();
+                    string uniqueClientId = ClientIdHelper.GetOrCreateClientId();
                     string clientType = "Worker Service";
 
                     // Send registration information
-                    await _connection.InvokeAsync("RegisterClient", uniqueId, deviceId, clientType);
+                    await _connection.InvokeAsync("RegisterClient", uniqueClientId, deviceId, clientType);
                 }
             }
             catch (Exception ex)
@@ -50,4 +51,5 @@ namespace WorkerService
             await _pipeService.RunPipeServer(stoppingToken, _connection);
         }
     }
+
 }
