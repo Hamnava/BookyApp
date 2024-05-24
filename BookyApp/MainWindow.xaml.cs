@@ -67,6 +67,14 @@ namespace BookyApp
             try
             {
                 await _connection1.StartAsync();
+
+                // Get the unique device ID
+                string deviceId = DeviceInfoHelper.GetDeviceId();
+                string uniqueId = Guid.NewGuid().ToString();
+                string clientType = "WPF";
+
+                // Send registration information
+                await _connection1.InvokeAsync("RegisterClient", uniqueId, deviceId, clientType);
             }
             catch (Exception ex)
             {

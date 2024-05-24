@@ -10,7 +10,6 @@ namespace WorkerService
         private readonly ILogger<SignalRWorker> _logger;
         private readonly NamedPipeService _pipeService;
 
-
         public SignalRWorker(ILogger<SignalRWorker> logger)
         {
             _connection = new HubConnectionBuilder()
@@ -26,7 +25,6 @@ namespace WorkerService
             _pipeService = new NamedPipeService("SendMessageToSignalR", PipeDirection.In, logger);
         }
 
-
         protected async override Task ExecuteAsync(CancellationToken stoppingToken)
         {
             try
@@ -34,6 +32,14 @@ namespace WorkerService
                 if (_connection.State == HubConnectionState.Disconnected)
                 {
                     await _connection.StartAsync();
+
+                    // Get the unique device ID
+                    string deviceId = DeviceInfoHelper.GetDeviceId();
+                    string uniqueId = Guid.NewGuid().ToString();
+                    string clientType = "Worker Service";
+
+                    // Send registration information
+                    await _connection.InvokeAsync("RegisterClient", uniqueId, deviceId, clientType);
                 }
             }
             catch (Exception ex)
@@ -41,9 +47,7 @@ namespace WorkerService
                 Console.WriteLine($"Exception: {ex.Message}");
             }
 
-
             await _pipeService.RunPipeServer(stoppingToken, _connection);
-           
         }
     }
 }

@@ -2,21 +2,17 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div>
-   
+<h2>Send and Receive Messages</h2>
 
-   
-    <h2>Send and Receive Messages</h2>
-  
-    <div class="d-flex col-4 my-5">
-        <input class="form-control me-2" id="messageInput" type="text" placeholder="Type your message">
-        <button class="btn btn-primary" id="sendButton">Send</button>
-    </div>
-   
-    <ul id="messageList"></ul>
-
+<div class="d-flex col-4 my-5">
+    <input class="form-control me-2" id="messageInput" type="text" placeholder="Type your message">
+    <button class="btn btn-primary" id="sendButton">Send</button>
 </div>
+<ul id="messageList"></ul>
 
+<h3>Connected Clients</h3>
+
+<div id="clientList" class="row"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.0/signalr.min.js"></script>
 <script>
@@ -24,21 +20,79 @@
         .withUrl("/chatHub")
         .build();
 
+    let selectedClientId = null;
+
     connection.on("ReceiveMessage", function (user, message) {
         const li = document.createElement("li");
         li.textContent = `${user}: ${message}`;
         document.getElementById("messageList").appendChild(li);
     });
 
-    connection.start().catch(function (err) {
+    connection.on("UpdateClientList", function (clients) {
+        const clientList = document.getElementById("clientList");
+        clientList.innerHTML = ""; // Clear current list
+        clients.forEach(client => {
+            const card = document.createElement('div');
+            card.className = 'rounded-2 shadow p-2 col-3 me-3 mt-3';
+            card.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <p>Client type: ${client.clientType}</p>
+                        <p class="status text-success" id="status-${client.connectionId}">online</p>
+                    </div>
+                    <p>Device Id: ${client.deviceId}</p>
+                    <button class="btn btn-secondary selectClientButton" data-connectionid="${client.connectionId}">Select</button>
+                `;
+            clientList.appendChild(card);
+        });
+
+        document.querySelectorAll('.selectClientButton').forEach(button => {
+            button.addEventListener('click', function () {
+                // Deselect previous selection
+                document.querySelectorAll('.selectClientButton').forEach(btn => {
+                    btn.disabled = false;
+                    btn.closest('.col-3').style.border = 'none';
+                });
+
+                // Select new client
+                selectedClientId = this.getAttribute('data-connectionid');
+                this.disabled = true;
+                this.closest('.col-3').style.border = '2px solid green';
+            });
+        });
+    });
+
+    connection.on("ClientStatusChanged", function (connectionId, status) {
+        const statusElement = document.getElementById(`status-${connectionId}`);
+        if (statusElement) {
+            statusElement.textContent = status;
+            statusElement.className = status === 'online' ? 'status text-success' : 'status text-danger';
+        }
+    });
+
+    connection.start().then(() => {
+        // Get the unique device ID
+        var deviceId = "Web browser";
+        var uniqueId = "Unique Id";
+        var clientType = "Web";
+
+        connection.invoke("RegisterClient", uniqueId, deviceId, clientType).catch(function (err) {
+            return console.error(err.toString());
+        });
+    }).catch(function (err) {
         return console.error(err.toString());
     });
 
     document.getElementById("sendButton").addEventListener("click", function () {
         const message = document.getElementById("messageInput").value;
-        connection.invoke("SendMessage", "Web", message).catch(function (err) {
-            return console.error(err.toString());
-        });
+        if (selectedClientId) {
+            connection.invoke("SendMessageToClient", selectedClientId, "Web", message).catch(function (err) {
+                return console.error(err.toString());
+            });
+        } else {
+            connection.invoke("SendMessage", "Web", message).catch(function (err) {
+                return console.error(err.toString());
+            });
+        }
         document.getElementById("messageInput").value = "";
     });
 </script>
