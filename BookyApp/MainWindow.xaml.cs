@@ -16,8 +16,8 @@ namespace BookyApp
     public partial class MainWindow : Window
     {
 
-        private HubConnection _connection1;
-        private HubConnection _connection2;
+        private HubConnection chatConnection;
+        private HubConnection presenseConnection;
         private ConnectionStatusManager _statusManager = new ConnectionStatusManager();
         private NamedPipeClientService _pipeClientService;
 
@@ -52,11 +52,11 @@ namespace BookyApp
 
         private async void InitializeSignalR()
         {
-            _connection1 = new HubConnectionBuilder()
+            chatConnection = new HubConnectionBuilder()
                 .WithUrl("https://localhost:7031/chatHub")
                 .Build();
 
-            _connection1.On<string, string>("ReceiveMessage", (user, message) =>
+            chatConnection.On<string, string>("ReceiveMessage", (user, message) =>
             {
                 this.Dispatcher.Invoke(() =>
                 {
@@ -67,7 +67,7 @@ namespace BookyApp
 
             try
             {
-                await _connection1.StartAsync();
+                await chatConnection.StartAsync();
 
                 // Get the unique device ID
                 string deviceId = DeviceInfoHelper.GetDeviceId();
@@ -75,7 +75,7 @@ namespace BookyApp
                 string clientType = "WPF";
 
                 // Send registration information
-                await _connection1.InvokeAsync("RegisterClient", uniqueClientId, deviceId, clientType);
+                await chatConnection.InvokeAsync("RegisterClient", uniqueClientId, deviceId, clientType);
             }
             catch (Exception ex)
             {
@@ -85,31 +85,38 @@ namespace BookyApp
 
         private async void PresenceSignalR()
         {
-            _connection2 = new HubConnectionBuilder()
+            presenseConnection = new HubConnectionBuilder()
                 .WithUrl("https://localhost:7031/presenceHub")
                 .Build();
 
-            _connection2.Closed += async (error) =>
+            presenseConnection.Closed += async (error) =>
             {
                 await Task.Delay(new Random().Next(0, 5) * 1000);
-                await _connection2.StartAsync();
+                await presenseConnection.StartAsync();
             };
 
-            _connection2.On<bool>("WorkerServiceStatus", (isAlive) =>
+            presenseConnection.On<bool>("WorkerServiceStatus", (isAlive) =>
             {
                 UpdateUI(isAlive);
             });
 
-            await _connection2.StartAsync();
-            await _connection2.SendAsync("SendHelloMessage", "WPF service is running");
+            await presenseConnection.StartAsync();
+            await presenseConnection.SendAsync("SendHelloMessage", "WPF service is running");
+
+            // Get the unique device ID
+            string deviceId = DeviceInfoHelper.GetDeviceId();
+            string uniqueClientId = ClientIdHelper.GetOrCreateClientId();
+
+            // Send registration information
+            await presenseConnection.InvokeAsync("RegisterClient", uniqueClientId, deviceId, false);
 
             // Request the current status of the worker service immediately after connecting
-            await _connection2.InvokeAsync("GetWorkerServiceStatus");
+            await presenseConnection.InvokeAsync("GetWorkerServiceStatus", deviceId);
         }
 
         private async void SignalRMessageButton_Click(object sender, RoutedEventArgs e)
         {
-            await _connection1.InvokeAsync("SendMessage", "WPF User", "Hello from WPF");
+            await chatConnection.InvokeAsync("SendMessage", "WPF User", "Hello from WPF");
         }
 
 

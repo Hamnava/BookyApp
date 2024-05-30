@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
+using WorkerService.Helper;
 
 namespace WorkerService.Services
 {
@@ -11,7 +12,7 @@ namespace WorkerService.Services
             try
             {
                 _connection = new HubConnectionBuilder()
-                .WithUrl("https://localhost:7031/presenceHub?isWorkerService=true")
+                .WithUrl("https://localhost:7031/presenceHub")
                 .Build();
 
                 _connection.Closed += async (error) =>
@@ -22,6 +23,13 @@ namespace WorkerService.Services
 
                 await _connection.StartAsync();
                 await _connection.SendAsync("SendHelloMessage", "Worker service is running");
+
+                // Get the unique device ID
+                string deviceId = DeviceInfoHelper.GetDeviceId();
+                string uniqueClientId = ClientIdHelper.GetOrCreateClientId();
+
+                // Send registration information
+                await _connection.InvokeAsync("RegisterClient", uniqueClientId, deviceId, true);
 
                 await Task.Delay(30000).ContinueWith(_ => SimulateCrash());
             }

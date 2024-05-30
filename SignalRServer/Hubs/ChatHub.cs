@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using SignalRServer.Models;
 
 namespace SignalRServer.Hubs
 {
@@ -78,20 +79,6 @@ namespace SignalRServer.Hubs
         {
             await Clients.Client(connectionId).SendAsync("ReceiveMessage", user, message);
         }
-    }
-
-
-
-
-
-
-    public class ClientInfo
-    {
-        public string ConnectionId { get; set; }
-        public string UniqueClientId { get; set; } // Unique ID that persists across connections
-        public string DeviceId { get; set; }
-        public string ClientType { get; set; }
-        public bool IsOnline { get; set; }
     }
 
 }

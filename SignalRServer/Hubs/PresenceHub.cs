@@ -1,48 +1,114 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using SignalRServer.Models;
+using System.Collections.Concurrent;
 
 namespace SignalRServer.Hubs
 {
     public class PresenceHub : Hub
     {
-        public static HashSet<string> WorkerServiceConnections = new HashSet<string>();
-        public static bool IsWorkerServiceConnected => WorkerServiceConnections.Count > 0;
+        private static readonly ConcurrentDictionary<string, PresenseInfo> ClientsInfo = new();
+        private static readonly ConcurrentDictionary<string, string> ClientIdToConnectionId = new(); // Maps UniqueClientId to ConnectionId
 
-        public override Task OnConnectedAsync()
+        public override async Task OnConnectedAsync()
         {
-            var isWorkerService = Context.GetHttpContext().Request.Query["isWorkerService"];
-            if (isWorkerService == "true")
+            await base.OnConnectedAsync();
+        }
+
+        public async Task RegisterClient(string uniqueClientId, string deviceId, bool isWorkerService)
+        {
+            var connectionId = Context.ConnectionId;
+
+            // Check if the client already exists
+            if (ClientIdToConnectionId.TryGetValue(uniqueClientId, out var oldConnectionId))
             {
-                Console.WriteLine($"Worker service connected with Id: {Context.ConnectionId}");
-                WorkerServiceConnections.Add(Context.ConnectionId);
-                Clients.All.SendAsync("WorkerServiceStatus", true);
-            }
-            return base.OnConnectedAsync();
-        }
+                // Update the existing client's information
+                if (ClientsInfo.TryGetValue(oldConnectionId, out var clientInfo))
+                {
+                    clientInfo.ConnectionId = connectionId;
+                    clientInfo.DeviceId = deviceId;
+                    clientInfo.IsWorkerService = isWorkerService;
+                    clientInfo.IsOnline = true;
 
-        public override Task OnDisconnectedAsync(Exception exception)
-        {
-            if (WorkerServiceConnections.Contains(Context.ConnectionId))
+                    // Remove the old mapping
+                    ClientsInfo.TryRemove(oldConnectionId, out _);
+                    ClientIdToConnectionId.TryRemove(uniqueClientId, out _);
+
+                    // Add the new mapping
+                    ClientsInfo[connectionId] = clientInfo;
+                    ClientIdToConnectionId[uniqueClientId] = connectionId;
+                }
+            }
+            else
             {
-                Console.WriteLine($"Worker service disconnected with Id: {Context.ConnectionId}");
+                // Add new client
+                var clientInfo = new PresenseInfo
+                {
+                    ConnectionId = connectionId,
+                    UniqueClientId = uniqueClientId,
+                    DeviceId = deviceId,
+                    IsWorkerService = isWorkerService,
+                    IsOnline = true
+                };
 
-                WorkerServiceConnections.Remove(Context.ConnectionId);
-                Clients.All.SendAsync("WorkerServiceStatus", false);
+                ClientsInfo[connectionId] = clientInfo;
+                ClientIdToConnectionId[uniqueClientId] = connectionId;
             }
-            return base.OnDisconnectedAsync(exception);
+
+            // Check if this connected client is a worker service
+            if (isWorkerService)
+            {
+                // Find any WPF client with the same DeviceId
+                foreach (var kvp in ClientsInfo)
+                {
+                    var client = kvp.Value;
+                    if (client.DeviceId == deviceId && !client.IsWorkerService)
+                    {
+                        await Clients.Client(client.ConnectionId).SendAsync("WorkerServiceStatus", true);
+                    }
+                }
+            }
         }
 
-        public Task GetWorkerServiceStatus()
+        public override async Task OnDisconnectedAsync(Exception exception)
         {
-            return Clients.Caller.SendAsync("WorkerServiceStatus", IsWorkerServiceConnected);
+            var connectionId = Context.ConnectionId;
+            if (ClientsInfo.TryRemove(connectionId, out var clientInfo))
+            {
+                ClientIdToConnectionId.TryRemove(clientInfo.UniqueClientId, out _);
+
+                if (clientInfo.IsWorkerService)
+                {
+                    // Find any WPF client with the same DeviceId
+                    foreach (var kvp in ClientsInfo)
+                    {
+                        var client = kvp.Value;
+                        if (client.DeviceId == clientInfo.DeviceId && !client.IsWorkerService)
+                        {
+                            await Clients.Client(client.ConnectionId).SendAsync("WorkerServiceStatus", false);
+                        }
+                    }
+                }
+            }
+
+            await base.OnDisconnectedAsync(exception);
         }
 
-        public Task SendHelloMessage(string message)
+        public async Task GetWorkerServiceStatus(string deviceId)
+        {
+            var isWorkerServiceOnline = ClientsInfo.Values.Any(client => client.DeviceId == deviceId && client.IsWorkerService && client.IsOnline);
+            await Clients.Caller.SendAsync("WorkerServiceStatus", isWorkerServiceOnline);
+        }
+
+        public async Task SendHelloMessage(string message)
         {
             Console.WriteLine($"Message from {Context.ConnectionId}: {message}");
-            // You can customize this to send the message to specific clients or groups
-            return Clients.All.SendAsync("ReceiveMessage", Context.ConnectionId, message);
+            await Clients.All.SendAsync("ReceiveMessage", Context.ConnectionId, message);
         }
     }
 
 
 }
+
+
+
+
