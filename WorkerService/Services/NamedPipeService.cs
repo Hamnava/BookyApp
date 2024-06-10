@@ -1,12 +1,13 @@
 ﻿using Newtonsoft.Json;
 using System.IO.Pipes;
-using WorkerService.Models;
 
 public class NamedPipeService
 {
     private readonly string _pipeName;
     private readonly PipeDirection _pipeDirection;
     private readonly ILogger _logger;
+
+    public event Func<object, Task> MessageReceived;
 
     public NamedPipeService(string pipeName, PipeDirection pipeDirection, ILogger logger)
     {
@@ -21,41 +22,57 @@ public class NamedPipeService
         {
             using (var server = new NamedPipeServerStream(_pipeName, _pipeDirection, 1, PipeTransmissionMode.Message, PipeOptions.Asynchronous))
             {
-
                 _logger.LogInformation("Waiting for connection...");
                 await server.WaitForConnectionAsync(stoppingToken);
 
                 if (_pipeDirection == PipeDirection.In || _pipeDirection == PipeDirection.InOut)
                 {
-                    await HandleIncomingMessages(server);
+                    var receivedObject = await ReceiveMessageAsync(server);
+                    _logger.LogInformation($"Received: {JsonConvert.SerializeObject(receivedObject)}");
+
+                    // Optional: Handle the received object as needed
+                    // e.g., Change some data or update DB records;
+
+                    // Notify the worker service
+                    if (MessageReceived != null)
+                    {
+                        await MessageReceived.Invoke(receivedObject);
+                    }
+
+                    if (_pipeDirection == PipeDirection.InOut)
+                    {
+                        // Example of sending a response back
+                        var responseObject = new { Status = "Received", Data = receivedObject };
+                        await SendMessageAsync(server, responseObject);
+                    }
                 }
             }
         }
     }
 
-    private async Task HandleIncomingMessages(NamedPipeServerStream server)
+    private async Task<object> ReceiveMessageAsync(NamedPipeServerStream server)
     {
-        using (var reader = new StreamReader(server))
+        using (var reader = new StreamReader(server, leaveOpen: true))
         {
             string message = await reader.ReadLineAsync();
-            _logger.LogInformation($"Received: {message}");
-            Console.WriteLine($"Received: {message}");
+            var receivedObject = JsonConvert.DeserializeObject<object>(message);
+            return receivedObject;
+        }
+    }
 
-            if (_pipeDirection == PipeDirection.InOut)
+    public async Task SendMessageAsync(NamedPipeServerStream server, object message)
+    {
+        if (server.IsConnected)
+        {
+            using (var writer = new StreamWriter(server) { AutoFlush = true })
             {
-                using (var writer = new StreamWriter(server))
-                {
-                    var data = JsonConvert.DeserializeObject<HelloWithObject>(message);
-                    string response = $"Received: Name={data.Name}, Family={data.Family}, Age={data.Age}";
-
-                    Console.WriteLine(response);
-
-                    await writer.WriteLineAsync(response);
-                    await writer.FlushAsync();
-
-                    _logger.LogInformation(response);
-                }
+                string jsonMessage = JsonConvert.SerializeObject(message);
+                await writer.WriteLineAsync(jsonMessage);
+                await writer.FlushAsync();
             }
         }
     }
 }
+
+
+

@@ -1,5 +1,6 @@
 ﻿
 using Microsoft.AspNetCore.SignalR.Client;
+using Newtonsoft.Json;
 using System.IO.Pipes;
 
 namespace WorkerService
@@ -47,9 +48,24 @@ namespace WorkerService
                 Console.WriteLine($"Exception: {ex.Message}");
             }
 
-            await _pipeService.RunPipeServer(stoppingToken);
+            // Subscribe to the MessageReceived event
+            _pipeService.MessageReceived += async (message) =>
+            {
+                try
+                {
+                    // Send the received message to SignalR
+                    await _connection.InvokeAsync("SendMessage", "Worker Service", JsonConvert.SerializeObject(message));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Exception when sending message to SignalR: {ex.Message}");
+                }
+            };
 
+            await _pipeService.RunPipeServer(stoppingToken);
         }
     }
 
 }
+
+
