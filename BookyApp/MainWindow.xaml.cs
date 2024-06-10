@@ -47,7 +47,7 @@ namespace BookyApp
 
         private async void SendDataButton_Click(object sender, RoutedEventArgs e)
         {
-            await _namedPipeService.SendMessageAsync("PipesOfPiece", PipeDirection.Out, "Hello from WPF!");
+            await _namedPipeService.SendMessageAsync(PipeNames.OnlySend, PipeDirection.Out, "Hello from WPF!");
         }
 
         private async void SignalRMessageButton_Click(object sender, RoutedEventArgs e)
@@ -58,13 +58,13 @@ namespace BookyApp
         private async void SendAndRecieveDataButton_Click(object sender, RoutedEventArgs e)
         {
             var data = new HelloWithObject { Name = "Nematulah", Family = "Hussaini", Age = 24 };
-            await _namedPipeService.SendMessageAsync("SendReceive", PipeDirection.InOut, data);
+            await _namedPipeService.SendMessageAsync(PipeNames.SendReceive, PipeDirection.InOut, data);
         }
 
         private async void SendMessageToSignalR_Click(object sender, RoutedEventArgs e)
         {
             var data = "This message received from WPF to worker service via NamedPipeClientStream and then from worker service sent to chatHub via SignalR!";
-            await _namedPipeService.SendMessageAsync("SendMessageToSignalR", PipeDirection.Out, data);
+            await _namedPipeService.SendMessageAsync(PipeNames.SendMessageToSignalR, PipeDirection.Out, data);
         }
     }
 

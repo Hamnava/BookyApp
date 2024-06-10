@@ -1,16 +1,17 @@
 using System.IO.Pipes;
+using WorkerService.Helpers;
 
 namespace WorkerService
 {
-    public class Worker : BackgroundService
+    public class OnlyRecieveWorker : BackgroundService
     {
-        private readonly ILogger<Worker> _logger;
+        private readonly ILogger<OnlyRecieveWorker> _logger;
         private readonly NamedPipeService _pipeService;
 
-        public Worker(ILogger<Worker> logger)
+        public OnlyRecieveWorker(ILogger<OnlyRecieveWorker> logger)
         {
             _logger = logger;
-            _pipeService = new NamedPipeService("PipesOfPiece", PipeDirection.In, logger);
+            _pipeService = new NamedPipeService(PipeNames.OnlySend, PipeDirection.In, logger);
         }
 
 

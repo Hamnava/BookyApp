@@ -3,8 +3,8 @@ using WorkerService.Services;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddHostedService<Worker>();
-builder.Services.AddHostedService<SecondWorker>();
+builder.Services.AddHostedService<OnlyRecieveWorker>();
+builder.Services.AddHostedService<SendReceiveWorker>();
 builder.Services.AddHostedService<PresenceService>();
 builder.Services.AddHostedService<SignalRWorker>();
 

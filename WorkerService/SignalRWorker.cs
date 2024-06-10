@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
 using System.IO.Pipes;
+using WorkerService.Helpers;
 
 namespace WorkerService
 {
@@ -23,7 +24,7 @@ namespace WorkerService
             });
 
             _logger = logger;
-            _pipeService = new NamedPipeService("SendMessageToSignalR", PipeDirection.In, logger);
+            _pipeService = new NamedPipeService(PipeNames.SendMessageToSignalR, PipeDirection.In, logger);
         }
 
         protected async override Task ExecuteAsync(CancellationToken stoppingToken)
