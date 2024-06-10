@@ -39,13 +39,14 @@
             const statusClass = client.isOnline ? 'text-success' : 'text-danger';
             const statusText = client.isOnline ? 'online' : 'offline';
             const card = document.createElement('div');
-            card.className = 'rounded-2 shadow p-2 col-3 me-3';
+            card.className = 'rounded-2 shadow p-2 col-3 me-3 my-4';
             card.innerHTML = `
                     <div class="d-flex justify-content-between">
                         <p>Client type: ${client.clientType}</p>
                         <p class="${statusClass}" id="status-${client.uniqueClientId}">${statusText}</p>
                     </div>
                     <p>Device Id: ${client.deviceId}</p>
+                    <p>Connection Id: ${client.connectionId}</p>
                     <button class="btn btn-secondary selectClientButton" data-connectionid="${client.connectionId}" ${!client.isOnline ? 'disabled' : ''}>Select</button>
                 `;
             clientList.appendChild(card);
@@ -101,7 +102,7 @@
     document.getElementById("sendButton").addEventListener("click", function () {
         const message = document.getElementById("messageInput").value;
         if (selectedClientId) {
-            connection.invoke("SendMessageToClient", selectedClientId, "Web", message).catch(function (err) {
+            connection.invoke("SendMessageToClient", selectedClientId, `Web to client ${selectedClientId}`, message).catch(function (err) {
                 return console.error(err.toString());
             });
         } else {
@@ -112,3 +113,4 @@
         document.getElementById("messageInput").value = "";
     });
 </script>
+

@@ -6,7 +6,6 @@ namespace SignalRServer.Hubs
     public class ChatHub : Hub
     {
         private static readonly Dictionary<string, ClientInfo> ClientsInfo = new();
-        private static readonly Dictionary<string, string> ClientIdToConnectionId = new(); // Maps UniqueClientId to ConnectionId
 
         public override async Task OnConnectedAsync()
         {
@@ -21,6 +20,7 @@ namespace SignalRServer.Hubs
                 clientInfo.IsOnline = false;
                 await Clients.All.SendAsync("UpdateClientList", ClientsInfo.Values);
                 await Clients.All.SendAsync("ClientStatusChanged", clientInfo.UniqueClientId, "offline");
+
             }
 
             await base.OnDisconnectedAsync(exception);
@@ -30,44 +30,20 @@ namespace SignalRServer.Hubs
         {
             var connectionId = Context.ConnectionId;
 
-            // Check if the client already exists
-            if (ClientIdToConnectionId.TryGetValue(uniqueClientId, out var oldConnectionId))
+            // Add new client
+            var clientInfo = new ClientInfo
             {
-                // Update the existing client's information
-                if (ClientsInfo.TryGetValue(oldConnectionId, out var clientInfo))
-                {
-                    clientInfo.ConnectionId = connectionId;
-                    clientInfo.DeviceId = deviceId;
-                    clientInfo.ClientType = clientType;
-                    clientInfo.IsOnline = true;
+                ConnectionId = connectionId,
+                UniqueClientId = uniqueClientId,
+                DeviceId = deviceId,
+                ClientType = clientType,
+                IsOnline = true
+            };
 
-                    // Remove the old mapping
-                    ClientsInfo.Remove(oldConnectionId);
-                    ClientIdToConnectionId.Remove(uniqueClientId);
-
-                    // Add the new mapping
-                    ClientsInfo[connectionId] = clientInfo;
-                    ClientIdToConnectionId[uniqueClientId] = connectionId;
-                }
-            }
-            else
-            {
-                // Add new client
-                var clientInfo = new ClientInfo
-                {
-                    ConnectionId = connectionId,
-                    UniqueClientId = uniqueClientId,
-                    DeviceId = deviceId,
-                    ClientType = clientType,
-                    IsOnline = true
-                };
-
-                ClientsInfo[connectionId] = clientInfo;
-                ClientIdToConnectionId[uniqueClientId] = connectionId;
-            }
+            ClientsInfo[connectionId] = clientInfo;
 
             await Clients.All.SendAsync("UpdateClientList", ClientsInfo.Values);
-            await Clients.All.SendAsync("ClientStatusChanged", uniqueClientId, "online");
+            await Clients.All.SendAsync("ClientStatusChanged", clientInfo.ConnectionId, "online");
         }
 
         public async Task SendMessage(string user, string message)
@@ -82,3 +58,5 @@ namespace SignalRServer.Hubs
     }
 
 }
+
+

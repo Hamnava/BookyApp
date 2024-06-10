@@ -32,7 +32,10 @@ namespace BookyApp.Services
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     var newMessage = $"{user}: {message}";
-                    MessageBox.Show(newMessage);
+
+                    // Show the custom message box in the middle of the main window
+                    var mainWindow = Application.Current.MainWindow;
+                    CustomMessageShow.Show(newMessage, mainWindow);
                 });
             });
 

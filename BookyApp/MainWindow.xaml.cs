@@ -1,6 +1,4 @@
-﻿
-using BookyApp.Helper;
-using BookyApp.Helpers;
+﻿using BookyApp.Helpers;
 using BookyApp.Models;
 using BookyApp.Services;
 using Microsoft.Extensions.Configuration;
@@ -40,7 +38,7 @@ namespace BookyApp
         private async void InitializeSignalR()
         {
             string deviceId = DeviceInfoHelper.GetDeviceId();
-            string uniqueClientId = ClientIdHelper.GetOrCreateClientId();
+            string uniqueClientId = Guid.NewGuid().ToString();
             string clientType = "WPF";
 
             await _signalRService.InitializeChatConnection(uniqueClientId, deviceId, clientType);

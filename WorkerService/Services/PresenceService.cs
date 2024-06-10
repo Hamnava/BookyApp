@@ -31,7 +31,7 @@ namespace WorkerService.Services
                 // Send registration information
                 await _connection.InvokeAsync("RegisterClient", uniqueClientId, deviceId, true);
 
-                await Task.Delay(30000).ContinueWith(_ => SimulateCrash());
+                //await Task.Delay(30000).ContinueWith(_ => SimulateCrash());
             }
             catch (Exception ex)
             {
