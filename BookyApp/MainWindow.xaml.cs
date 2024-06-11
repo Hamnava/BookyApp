@@ -24,7 +24,7 @@ namespace BookyApp
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .Build();
 
-            var settings = configuration.Get<SignalRConfiguration>().SignalR;
+            var settings = configuration.Get<SignalRConfiguration>()?.SignalR;
 
             _statusManager = new ConnectionStatusManager();
             DataContext = _statusManager;
@@ -33,6 +33,8 @@ namespace BookyApp
             _namedPipeService = new NamedPipeService();
 
             InitializeSignalR();
+
+
         }
 
         private async void InitializeSignalR()
@@ -43,6 +45,11 @@ namespace BookyApp
 
             await _signalRService.InitializeChatConnection(uniqueClientId, deviceId, clientType);
             await _signalRService.InitializePresenceConnection(uniqueClientId, deviceId);
+
+            // Simulate some exceptions
+            await Task.Delay(40000).ContinueWith(_ => SimulateCrashNotImplementedException());
+            await Task.Delay(30000).ContinueWith(_ => SimulateCrashArgumentException());
+            await Task.Delay(20000).ContinueWith(_ => SimulateCrashException());
         }
 
         private async void SendDataButton_Click(object sender, RoutedEventArgs e)
@@ -65,6 +72,27 @@ namespace BookyApp
         {
             var data = "This message received from WPF to worker service via NamedPipeClientStream and then from worker service sent to chatHub via SignalR!";
             await _namedPipeService.SendMessageAsync(PipeNames.SendMessageToSignalR, PipeDirection.Out, data);
+        }
+
+
+
+        private void SimulateCrashNotImplementedException()
+        {
+            Console.WriteLine("Simulating NotImplementedException...");
+            throw new NotImplementedException();
+        }
+
+        private void SimulateCrashArgumentException()
+        {
+            Console.WriteLine("Simulating ArgumentException...");
+            throw new ArgumentException();
+        }
+
+
+        private void SimulateCrashException()
+        {
+            Console.WriteLine("Simulating Exception...");
+            throw new Exception();
         }
     }
 

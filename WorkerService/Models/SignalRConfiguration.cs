@@ -4,4 +4,7 @@
     {
         public SignalRSettings SignalR { get; set; }
     }
+
+
+
 }

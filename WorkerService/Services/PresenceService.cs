@@ -1,51 +1,43 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
-using WorkerService.Helper;
+﻿using Microsoft.Extensions.Options;
+using WorkerService.Models;
 
 namespace WorkerService.Services
 {
     public class PresenceService : BackgroundService
     {
-        private HubConnection _connection;
+        private readonly SignalRService _signalRService;
+        private readonly SignalRConfiguration _signalRConfiguration;
+        public PresenceService(IOptions<SignalRConfiguration> signalRConfigurationOptions)
+        {
+            _signalRConfiguration = signalRConfigurationOptions.Value;
+
+            var settings = _signalRConfiguration.SignalR;
+            _signalRService = new SignalRService(settings);
+        }
 
         protected async override Task ExecuteAsync(CancellationToken stoppingToken)
         {
             try
             {
-                _connection = new HubConnectionBuilder()
-                .WithUrl("https://localhost:7031/presenceHub")
-                .Build();
-
-                _connection.Closed += async (error) =>
-                {
-                    await Task.Delay(new Random().Next(0, 5) * 1000);
-                    await _connection.StartAsync();
-                };
-
-                await _connection.StartAsync();
-                await _connection.SendAsync("SendHelloMessage", "Worker service is running");
-
-                // Get the unique device ID
                 string deviceId = DeviceInfoHelper.GetDeviceId();
-                string uniqueClientId = ClientIdHelper.GetOrCreateClientId();
+                string uniqueClientId = Guid.NewGuid().ToString();
+                string clientType = "Worker Service";
 
-                // Send registration information
-                await _connection.InvokeAsync("RegisterClient", uniqueClientId, deviceId, true);
+                await _signalRService.InitializePresenceConnection(uniqueClientId, deviceId);
 
-                //await Task.Delay(30000).ContinueWith(_ => SimulateCrash());
+                // after one minute crush the project
+                await Task.Delay(60000).ContinueWith(_ => SimulateCrash());
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Exception: {ex.Message}");
             }
-
-
         }
 
         private void SimulateCrash()
         {
             Console.WriteLine("Simulating crash...");
-            // Stop the timer to simulate the service crashing
-
+            // stop the application
             Environment.Exit(1);
         }
     }

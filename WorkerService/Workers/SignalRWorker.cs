@@ -1,29 +1,28 @@
-﻿
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System.IO.Pipes;
 using WorkerService.Helpers;
+using WorkerService.Models;
+using WorkerService.Services;
 
-namespace WorkerService
+namespace WorkerService.Workers
 {
     public class SignalRWorker : BackgroundService
     {
-        private readonly HubConnection _connection;
+        private readonly SignalRService _signalRService;
         private readonly ILogger<SignalRWorker> _logger;
         private readonly NamedPipeService _pipeService;
+        private readonly SignalRConfiguration _signalRConfiguration;
 
-        public SignalRWorker(ILogger<SignalRWorker> logger)
+        public SignalRWorker(ILogger<SignalRWorker> logger, IOptions<SignalRConfiguration> signalRConfigurationOptions)
         {
-            _connection = new HubConnectionBuilder()
-                .WithUrl("https://localhost:7031/chatHub")
-                .Build();
-
-            _connection.On<string, string>("ReceiveMessage", (user, message) =>
-            {
-                Console.WriteLine($"{user}: {message}");
-            });
+            _signalRConfiguration = signalRConfigurationOptions.Value;
 
             _logger = logger;
+
+            var settings = _signalRConfiguration.SignalR;
+            _signalRService = new SignalRService(settings);
+
             _pipeService = new NamedPipeService(PipeNames.SendMessageToSignalR, PipeDirection.In, logger);
         }
 
@@ -31,18 +30,11 @@ namespace WorkerService
         {
             try
             {
-                if (_connection.State == HubConnectionState.Disconnected)
-                {
-                    await _connection.StartAsync();
+                string deviceId = DeviceInfoHelper.GetDeviceId();
+                string uniqueClientId = Guid.NewGuid().ToString();
+                string clientType = "Worker Service";
 
-                    // Get the unique device ID
-                    string deviceId = DeviceInfoHelper.GetDeviceId();
-                    string uniqueClientId = Guid.NewGuid().ToString();
-                    string clientType = "Worker Service";
-
-                    // Send registration information
-                    await _connection.InvokeAsync("RegisterClient", uniqueClientId, deviceId, clientType);
-                }
+                await _signalRService.InitializeChatConnection(uniqueClientId, deviceId, clientType);
             }
             catch (Exception ex)
             {
@@ -55,7 +47,7 @@ namespace WorkerService
                 try
                 {
                     // Send the received message to SignalR
-                    await _connection.InvokeAsync("SendMessage", "Worker Service", JsonConvert.SerializeObject(message));
+                    await _signalRService.SendMessage("Worker Service", JsonConvert.SerializeObject(message));
                 }
                 catch (Exception ex)
                 {
